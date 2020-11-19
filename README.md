@@ -65,7 +65,7 @@ Split file into small chunks and store chunks on storage. It has following benef
 ## Rsync
 ## Version management 
 - Tag list of patches as version `x`
-# High level 
+# High level System design
 ![](assets/dropbox-high-level-design.png)
 ![](assets/dropbox-high-level-design-flow.png)
 # Component Design

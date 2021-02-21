@@ -1,4 +1,7 @@
 # Requirements and Goals of the System
+## Write code
+https://leetcode.com/problems/design-a-file-sharing-system/
+
 ## Functional requirements
 - Users should be able to upload and download their files/photos from any device.
 - Users should be able to share files or folders with other users.
@@ -62,7 +65,72 @@ Split file into small chunks and store chunks on storage. It has following benef
 - This algorithm is used by `.git` and `.svn`
 - It requires manual intervention on conflict 
 ![](https://github.com/dilipkumar2k6/crdt-and-distributed-consistency/raw/master/assets/differential-synchronization-patch.png)
+## Remote file copy
+- Store copy of entire file on server
+- Example `ftp` or `rcp`
 ## Rsync
+https://rsync.samba.org/~tridge/phd_thesis.pdf
+### Summary
+- In most cases, file transfer to servers are mostly updates i.e. old version of file already exist on the network
+- Remote file copy (`rcp`) doesn't take advantage of the old file
+- It is possible to transfer just the changes by keeping original files around then using a differential utility like `diff` and seding the diff files to the other end. But it is very error prone.
+- `rsync` is a replacement of remote file copy
+- It brings remote file into sync
+- It only sends differences across the network
+- It updates remote files without having prior knowledge of the relative states of the files at either side of link.
+### Goal
+- It should work on arbitrary data, not just text
+- The total data transferred should be about the size of a compressed diff file
+- It should be fast for larger files and larger collection of files
+- It should not assume any prior knowledge of of the two files, but should take advantage of similarties if exists
+- The number of round trip should be kept to a minimum to minimize the effort of transmission latency
+- it should be computationally inexpensive, if possible
+### Architecture
+![](assets/rsync-process-triangle-with-the-sequence-of-steps.png)
+![](assets/rsync-architecture.jpg)
+### Rsync Algo first attempt
+![](assets/rsync-first-attempt.png)
+Issue:
+- Based on fixed length content chunking
+- If the file on A is the same as B except that one byte has been inserted at the start of the file then no block matches will be found and the algorithm will transfer the whole file.
+### Rsync Algo second attempt
+- We can solve this problem by getting A to generate signatures not just at block boundaries, but at all byte boundaries.
+- When A compares the signature at each byte boundary with each of the signatures `Sj` on block boundaries of `bi` it will be able to find matches at non-block offsets. 
+- This allows for arbitrary length insertions and deletions between `ai` and `bi` to be handled.
+Issue: 
+- This would work, but it is not practical because of the computational cost of computing a reasonable signature on every possible block. 
+### Rsync Algo two singnature approach
+- The solution (and the key to the rsync algorithm) is to use not one signature per block,
+but two.
+- The first signature needs to be very cheap to compute for all byte offsets and
+the second signature needs to have a very low probability of collision
+- The second, expensive signature then only needs to be computed by A at byte offsets where the cheap signature matches one of the cheap signatures from B.
+- If we call the two signatures R and H then the algorithm becomes6
+![](assets/rsync-two-singnature-attempt.png)
+### Reconstructing the file on B
+- After sending the signatures to A, B receives a stream of literal bytes from A interspersed with tokens representing block matches.
+- To reconstruct the file B just needs to sequentially write the literal bytes to the file and write blocks obtained from the old file when a token is received. 
+### Algorithm
+#### Definitions
+- S (source) – the process at the end that has access to the latest version of a file.
+- T (target) – the process at the end that has access to a version of a file that is older than the version S has.
+#### Requirements
+- Sync changes between target file T that has older version of a source file S.
+- Minimize the network traffic for the synchronization.
+#### Implementation
+1. T (the target) divides the file into blocks with fixed size L.
+2. For each block, T calculates a signature that is fast to calculate but not unique.
+3. For each block, T calculates a signature that is slow to calculate but unique.
+4. T sends S a list of pairs with fast and slow signatures for each block.
+5. S starts checking its first block.
+6. T created a temporary empty file X that will replace its current file with the version from S side.
+7. S calculate the fast signature for the block,  if it is not equal to any of T fast signatures then S sends the first byte to T and T append this byte to file X. if the fast signature is equal, then S calculate the slow signature of the block and compare it to the matching slow signature. if the two signatures are equals then S sends T the id of the block. T append the block from its local copy via block id. if the slow  signature is not equal then S will send the first byte to T.
+8. The next block S will check will be the one starting in the next byte if the previous block did not match or the one starting in an offset of block size if the previous block matched. S may need to calculate the fast signature to every possible block  (i.e. blocks generated from the previous block by shifting one byte at a time, starting from the first block and ending in the last) – so rsync is using a method similar to Adler checksum that can be calculated efficiently in iterations based on previous block signature plus small number of steps.
+9. repeat steps 7-8 until S reach its end.
+![](assets/rsync-step1.png)
+![](assets/rsync-step2.png)
+![](assets/rsync-step3.png)
+![](assets/rsync-step4.png)
 ## Version management 
 - Tag list of patches as version `x`
 # High level System design

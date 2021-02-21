@@ -165,28 +165,30 @@ Following are different components for client.
 {
    "chunk_id":"string",
    "chunk_order":"number",
-   "object":{
-      "version":"number",
-      "is_folder":"boolean",
-      "modified":"number",
-      "file_name":"string",
-      "file_extention":"string",
-      "file_size":"number",
-      "file_path":"string",
-      "user":{
-         "user_name":"string",
-         "email":"string",
-         "quota_limit":"number",
-         "quota_used":"number",
-         "device":{
-            "device_name":"string",
-            "sync_folder":"string"
-         }
-      }
-   }
+   "version":"number",
+   "is_folder":"boolean",
+   "modified":"number",
+   "file_name":"string",
+   "file_extention":"string",
+   "file_size":"number",
+   "file_path":"string",
+   "user_id": "number"
 }
 ```
 - It will also store users data
+```
+{
+   "user_id": "number"
+   "user_name":"string",
+   "email":"string",
+   "quota_limit":"number",
+   "quota_used":"number",
+   "device":{
+      "device_name":"string",
+      "sync_folder":"string"
+   }
+}
+```
 ### Metadata Database storage estimate
 - Total total users: 500M
 - Daily active users: 100M
